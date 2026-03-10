@@ -7,7 +7,13 @@ import type {
   FormPage,
   FormSettings,
 } from "@otl-core/cms-types";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 
 interface FormContextValue {
   /** The actual form ID (from the form definition / PostgreSQL) */
@@ -83,9 +89,9 @@ export function FormProvider({
   formVariantId,
   locale,
 }: FormProviderProps) {
-  const [internalDocument, setInternalDocument] =
-    useState<FormDocument>(document);
-  const [currentPage, setCurrentPage] = useState<FormPage>(document.pages[0]);
+  const [currentPageId, setCurrentPageId] = useState<string>(
+    document.pages[0]?.id ?? "",
+  );
   const [formValues, setFormValues] = useState<Record<string, unknown>>({});
 
   const [loading, setLoading] = useState(false);
@@ -93,29 +99,23 @@ export function FormProvider({
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [hasStarted, setHasStarted] = useState(false);
 
-  // Update internal document when prop changes
-  useEffect(() => {
-    setInternalDocument(document);
+  // Derive current page from document prop + stored page ID
+  const currentPage = useMemo(
+    () =>
+      document.pages.find((p) => p.id === currentPageId) ?? document.pages[0],
+    [document, currentPageId],
+  );
 
-    // Update current page reference if it exists in the new document
-    if (currentPage) {
-      const updatedPage = document.pages.find((p) => p.id === currentPage.id);
-      if (updatedPage) {
-        setCurrentPage(updatedPage);
-      } else if (document.pages.length > 0) {
-        // If current page no longer exists, fall back to first page
-        setCurrentPage(document.pages[0]);
-      }
-    } else if (document.pages.length > 0) {
-      setCurrentPage(document.pages[0]);
-    }
-  }, [document]);
+  const setCurrentPage = useCallback(
+    (page: FormPage) => setCurrentPageId(page.id),
+    [],
+  );
 
   return (
     <FormContext.Provider
       value={{
         formId,
-        document: internalDocument,
+        document,
         settings,
 
         loading,

@@ -1,4 +1,8 @@
-import type { BlockInstance, FormAdvancedOptions } from "@otl-core/cms-types";
+import type {
+  BlockInstance,
+  FormAdvancedOptions,
+  FormPage,
+} from "@otl-core/cms-types";
 import { useCallback, useMemo } from "react";
 import { useForm } from "./form-context";
 import {
@@ -61,7 +65,7 @@ export function useFormAction(id: string): FormAction | null {
       setErrors(null);
       setGlobalError(null);
 
-      let targetPage: any = null;
+      let targetPage: FormPage | null = null;
 
       switch (to) {
         case "prev":
@@ -243,6 +247,8 @@ export function useFormAction(id: string): FormAction | null {
     onAnalyticsEvent,
     formName,
     locale,
+    formVariantId,
+    environmentVariantId,
   ]);
 
   const reset = useCallback(async () => {
