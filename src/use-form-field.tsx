@@ -1,3 +1,5 @@
+"use client";
+
 import type { BlockInstance, FormAdvancedOptions } from "@otl-core/cms-types";
 import { useCallback, useMemo } from "react";
 import { useForm } from "./form-context";
