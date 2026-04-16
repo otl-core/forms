@@ -43,6 +43,7 @@ export function useFormAction(id: string): FormAction | null {
     formValues,
     setErrors,
     loading,
+    setLoading,
     currentPage,
     setCurrentPage,
     setFormValues,
@@ -61,9 +62,11 @@ export function useFormAction(id: string): FormAction | null {
   }, [document, id]);
 
   const navigate = useCallback(
-    (to: string) => {
+    (to: string, skipValidation: boolean = false) => {
       const currentPageValid: true | { [key: string]: string } =
-        to === "first" || validatePage(currentPage, formValues, settings);
+        skipValidation ||
+        to === "first" ||
+        validatePage(currentPage, formValues, settings);
 
       if (currentPageValid !== true) {
         // Replace errors, don't accumulate
@@ -154,112 +157,121 @@ export function useFormAction(id: string): FormAction | null {
     ],
   );
 
-  const submit = useCallback(async () => {
-    if (!block) {
-      return;
-    }
-
-    // Collect all errors from all pages
-    let allErrors: { [key: string]: string } = {};
-    let hasErrors = false;
-
-    for (const page of document.pages) {
-      const result = validatePage(page, formValues, settings);
-      if (result !== true) {
-        allErrors = { ...allErrors, ...result };
-        hasErrors = true;
-      }
-    }
-
-    if (hasErrors) {
-      setErrors(allErrors);
-
-      // Emit form_error analytics event
-      if (analyticsSettings?.track_form_error && onAnalyticsEvent) {
-        onAnalyticsEvent("form_error", {
-          form_id: formId,
-          form_name: formName,
-          error_count: Object.keys(allErrors).length,
-          error_fields: Object.keys(allErrors),
-        });
-      }
-
-      return;
-    }
-
-    // Clear all errors on successful validation
-    setErrors(null);
-    setGlobalError(null);
-
-    try {
-      // Button-level submission_type override takes precedence over the form-level setting
-      const buttonTypeOverride =
-        block &&
-        typeof block.config.submission_type === "string" &&
-        block.config.submission_type
-          ? block.config.submission_type
-          : undefined;
-
-      const submissionData = {
-        form_id: formId,
-        type: buttonTypeOverride ?? settings?.form_type ?? "General",
-        locale: locale ?? "en",
-        data: formValues,
-        environment_type: "page",
-        environment_id: formId,
-        environment_path:
-          typeof window !== "undefined" ? window.location.pathname : undefined,
-        form_variant_id: formVariantId ?? "",
-        environment_variant_id: environmentVariantId ?? "",
-      };
-
-      const response = await fetch("/api/submission", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(submissionData),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        setGlobalError(
-          result.message || "Failed to submit form. Please try again.",
-        );
+  const submit = useCallback(
+    async (skipValidation: boolean) => {
+      if (!block) {
         return;
       }
 
-      // Emit form_submit analytics event on success
-      if (analyticsSettings?.track_form_submit && onAnalyticsEvent) {
-        onAnalyticsEvent("form_submit", {
-          form_id: formId,
-          form_name: formName,
-          total_pages: document.pages.length,
-          custom_event_name: analyticsSettings.submit_event_name,
-          target_providers: analyticsSettings.target_providers,
-        });
-      }
-    } catch (error) {
-      setGlobalError("An error occurred while submitting the form.");
-    }
+      if (!skipValidation) {
+        // Collect all errors from all pages
+        let allErrors: { [key: string]: string } = {};
+        let hasErrors = false;
 
-    return Promise.resolve();
-  }, [
-    block,
-    document,
-    formId,
-    formValues,
-    setErrors,
-    setGlobalError,
-    settings,
-    analyticsSettings,
-    onAnalyticsEvent,
-    formName,
-    locale,
-    formVariantId,
-    environmentVariantId,
-  ]);
+        for (const page of document.pages) {
+          const result = validatePage(page, formValues, settings);
+          if (result !== true) {
+            allErrors = { ...allErrors, ...result };
+            hasErrors = true;
+          }
+        }
+
+        if (hasErrors) {
+          setErrors(allErrors);
+
+          // Emit form_error analytics event
+          if (analyticsSettings?.track_form_error && onAnalyticsEvent) {
+            onAnalyticsEvent("form_error", {
+              form_id: formId,
+              form_name: formName,
+              error_count: Object.keys(allErrors).length,
+              error_fields: Object.keys(allErrors),
+            });
+          }
+
+          return;
+        }
+      }
+
+      // Clear all errors on successful validation
+      setErrors(null);
+      setGlobalError(null);
+
+      setLoading(true);
+      try {
+        // Button-level submission_type override takes precedence over the form-level setting
+        const buttonTypeOverride =
+          block &&
+          typeof block.config.submission_type === "string" &&
+          block.config.submission_type
+            ? block.config.submission_type
+            : undefined;
+
+        const submissionData = {
+          form_id: formId,
+          type: buttonTypeOverride ?? settings?.form_type ?? "General",
+          locale: locale ?? "en",
+          data: formValues,
+          environment_type: "page",
+          environment_id: formId,
+          environment_path:
+            typeof window !== "undefined"
+              ? window.location.pathname
+              : undefined,
+          form_variant_id: formVariantId ?? "",
+          environment_variant_id: environmentVariantId ?? "",
+        };
+
+        const response = await fetch("/api/submission", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(submissionData),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          setGlobalError(
+            result.message || "Failed to submit form. Please try again.",
+          );
+          return;
+        }
+
+        // Emit form_submit analytics event on success
+        if (analyticsSettings?.track_form_submit && onAnalyticsEvent) {
+          onAnalyticsEvent("form_submit", {
+            form_id: formId,
+            form_name: formName,
+            total_pages: document.pages.length,
+            custom_event_name: analyticsSettings.submit_event_name,
+            target_providers: analyticsSettings.target_providers,
+          });
+        }
+      } catch (error) {
+        setGlobalError("An error occurred while submitting the form.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [
+      block,
+      document,
+      formId,
+      formValues,
+      setErrors,
+      setGlobalError,
+      setLoading,
+      settings,
+      analyticsSettings,
+      onAnalyticsEvent,
+      formName,
+      locale,
+      formVariantId,
+      environmentVariantId,
+    ],
+  );
 
   const reset = useCallback(async () => {
     if (!block) {
@@ -276,8 +288,10 @@ export function useFormAction(id: string): FormAction | null {
       return;
     }
 
-    const setValues = (block.config.advanced_options as FormAdvancedOptions)
-      ?.set_values;
+    const advancedOptions = block.config
+      .advanced_options as FormAdvancedOptions;
+
+    const setValues = advancedOptions?.set_values;
     if (
       setValues &&
       typeof setValues === "object" &&
@@ -286,19 +300,20 @@ export function useFormAction(id: string): FormAction | null {
       setFormValues((prev) => ({ ...prev, ...setValues }));
     }
 
+    const skipValidation = advancedOptions?.require_validation === false;
     const action = block.config.action as string;
     let to = String(block.config.navigate_to_page || "next");
 
     if (action === "reset") {
       await reset();
       to = "first"; // always navigate to first page after reset
-      navigate(to);
+      navigate(to, true);
     } else if (action === "submit") {
-      await submit();
+      await submit(skipValidation);
       // Only navigate if submit was successful (no errors set)
-      navigate(to);
+      navigate(to, skipValidation);
     } else if (action === "navigate") {
-      navigate(to);
+      navigate(to, skipValidation);
     }
 
     return Promise.resolve();

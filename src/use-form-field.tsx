@@ -212,6 +212,18 @@ export function useFormField<T>(id: string): FormField<T> | null {
       multiple:
         typeof block.config.multiple === "boolean"
           ? block.config.multiple
+          : block.config.selection_type === "multiple"
+            ? true
+            : block.config.selection_type === "single"
+              ? false
+              : undefined,
+      appearance:
+        typeof block.config.appearance === "string"
+          ? block.config.appearance
+          : undefined,
+      checkIndicator:
+        typeof block.config.check_indicator === "string"
+          ? block.config.check_indicator
           : undefined,
       min: typeof block.config.min === "number" ? block.config.min : undefined,
       max: typeof block.config.max === "number" ? block.config.max : undefined,
