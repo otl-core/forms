@@ -21,6 +21,7 @@ import { validatePage } from "./utils/validation.utils";
 interface FormAction {
   variant: "primary" | "secondary" | "outline" | "ghost";
   size: "sm" | "md" | "lg";
+  align: "left" | "center" | "right";
   disabled: boolean;
   loading: boolean;
   display: "block" | "none";
@@ -268,6 +269,16 @@ export function useFormAction(id: string): FormAction | null {
       return;
     }
 
+    const setValues = (block.config.advanced_options as FormAdvancedOptions)
+      ?.set_values;
+    if (
+      setValues &&
+      typeof setValues === "object" &&
+      !Array.isArray(setValues)
+    ) {
+      setFormValues((prev) => ({ ...prev, ...setValues }));
+    }
+
     const action = block.config.action as string;
     let to = String(block.config.navigate_to_page || "next");
 
@@ -333,6 +344,13 @@ export function useFormAction(id: string): FormAction | null {
       typeof block.config.size === "string"
         ? (block.config.size as FormAction["size"])
         : "md",
+    align:
+      typeof block.config.align === "string" &&
+      (block.config.align === "left" ||
+        block.config.align === "center" ||
+        block.config.align === "right")
+        ? block.config.align
+        : "center",
     disabled,
     loading,
     display,

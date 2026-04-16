@@ -219,6 +219,12 @@ export function useFormField<T>(id: string): FormField<T> | null {
         typeof block.config.step === "number" ? block.config.step : undefined,
       blocks: block.config.blocks || undefined,
       gap: block.config.gap || undefined,
+      maxRating:
+        typeof block.config.maxRating === "number"
+          ? block.config.maxRating
+          : undefined,
+      icon:
+        typeof block.config.icon === "string" ? block.config.icon : undefined,
     },
 
     loading,
