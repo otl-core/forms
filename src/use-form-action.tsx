@@ -29,6 +29,13 @@ interface FormAction {
   onClick: () => Promise<void>;
 }
 
+function parseFormButtonAlign(raw: unknown): FormAction["align"] {
+  if (raw === "left" || raw === "center" || raw === "right") {
+    return raw;
+  }
+  return "center";
+}
+
 export function useFormAction(id: string): FormAction | null {
   const {
     formId,
@@ -344,13 +351,7 @@ export function useFormAction(id: string): FormAction | null {
       typeof block.config.size === "string"
         ? (block.config.size as FormAction["size"])
         : "md",
-    align:
-      typeof block.config.align === "string" &&
-      (block.config.align === "left" ||
-        block.config.align === "center" ||
-        block.config.align === "right")
-        ? block.config.align
-        : "center",
+    align: parseFormButtonAlign(block.config.align),
     disabled,
     loading,
     display,
