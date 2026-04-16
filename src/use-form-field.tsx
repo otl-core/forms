@@ -217,6 +217,8 @@ export function useFormField<T>(id: string): FormField<T> | null {
             : block.config.selection_type === "single"
               ? false
               : undefined,
+      align:
+        typeof block.config.align === "string" ? block.config.align : undefined,
       appearance:
         typeof block.config.appearance === "string"
           ? block.config.appearance
