@@ -158,9 +158,9 @@ export function useFormAction(id: string): FormAction | null {
   );
 
   const submit = useCallback(
-    async (skipValidation: boolean) => {
+    async (skipValidation: boolean): Promise<boolean> => {
       if (!block) {
-        return;
+        return false;
       }
 
       if (!skipValidation) {
@@ -178,6 +178,9 @@ export function useFormAction(id: string): FormAction | null {
 
         if (hasErrors) {
           setErrors(allErrors);
+          setGlobalError(
+            "Please fill in all required fields before submitting.",
+          );
 
           // Emit form_error analytics event
           if (analyticsSettings?.track_form_error && onAnalyticsEvent) {
@@ -189,7 +192,7 @@ export function useFormAction(id: string): FormAction | null {
             });
           }
 
-          return;
+          return false;
         }
       }
 
@@ -236,7 +239,7 @@ export function useFormAction(id: string): FormAction | null {
           setGlobalError(
             result.message || "Failed to submit form. Please try again.",
           );
-          return;
+          return false;
         }
 
         // Emit form_submit analytics event on success
@@ -249,8 +252,11 @@ export function useFormAction(id: string): FormAction | null {
             target_providers: analyticsSettings.target_providers,
           });
         }
+
+        return true;
       } catch (error) {
         setGlobalError("An error occurred while submitting the form.");
+        return false;
       } finally {
         setLoading(false);
       }
@@ -309,9 +315,10 @@ export function useFormAction(id: string): FormAction | null {
       to = "first"; // always navigate to first page after reset
       navigate(to, true);
     } else if (action === "submit") {
-      await submit(skipValidation);
-      // Only navigate if submit was successful (no errors set)
-      navigate(to, skipValidation);
+      const success = await submit(skipValidation);
+      if (success) {
+        navigate(to, skipValidation);
+      }
     } else if (action === "navigate") {
       navigate(to, skipValidation);
     }
